@@ -71,6 +71,9 @@ func (tb *TimeBank) NewTask(duration time.Duration, fn func(isCancelled bool)) e
 	go func() {
 		select {
 		case <-tb.timer.C:
+			tb.isRunning = false
+			close(tb.closed)
+			tb.closed = make(chan struct{})
 			tb.callback(false)
 		case <-tb.closed:
 		}
