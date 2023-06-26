@@ -54,7 +54,13 @@ func (tb *TimeBank) Cancel() {
 
 func (tb *TimeBank) NewTask(duration time.Duration, fn func(isCancelled bool)) error {
 
-	if duration == time.Second*0 || fn == nil {
+	// Trigger immediately
+	if duration == time.Second*0 && fn != nil {
+		fn(false)
+		return nil
+	}
+
+	if duration == time.Second*0 && fn == nil {
 		return ErrInvalidParameters
 	}
 

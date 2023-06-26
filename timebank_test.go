@@ -29,6 +29,27 @@ func TestNewTask(t *testing.T) {
 	assert.Equal(t, int64(3), duration)
 }
 
+func TestNewTaskWithZeroDuration(t *testing.T) {
+
+	tb := NewTimeBank()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	startTime := time.Now()
+
+	err := tb.NewTask(0*time.Second, func(isCancelled bool) {
+		wg.Done()
+	})
+
+	assert.Nil(t, err)
+
+	wg.Wait()
+
+	duration := time.Now().Unix() - startTime.Unix()
+	assert.Equal(t, int64(0), duration)
+}
+
 func TestCancel(t *testing.T) {
 
 	tb := NewTimeBank()
