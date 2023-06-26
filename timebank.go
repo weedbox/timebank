@@ -31,7 +31,7 @@ func NewTimeBank() *TimeBank {
 	tb := &TimeBank{
 		isRunning: false,
 		timer:     timer,
-		closed:    make(chan struct{}),
+		closed:    make(chan struct{}, 1),
 	}
 
 	return tb
