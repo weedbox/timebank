@@ -118,10 +118,10 @@ func TestReused(t *testing.T) {
 	tb := NewTimeBank()
 
 	var wg sync.WaitGroup
-	wg.Add(1)
 
 	startTime := time.Now()
 
+	wg.Add(1)
 	err := tb.NewTask(1*time.Second, func(isCancelled bool) {
 		wg.Done()
 	})

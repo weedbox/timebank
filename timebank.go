@@ -1,6 +1,7 @@
 package timebank
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -19,7 +20,8 @@ type TimeBank struct {
 	timer     *time.Timer
 	due       time.Time
 	callback  func(bool)
-	closed    chan struct{}
+	ctx       context.Context
+	cancel    func()
 }
 
 func NewTimeBank() *TimeBank {
@@ -31,7 +33,8 @@ func NewTimeBank() *TimeBank {
 	tb := &TimeBank{
 		isRunning: false,
 		timer:     timer,
-		closed:    make(chan struct{}, 1),
+		callback:  func(bool) {},
+		cancel:    func() {},
 	}
 
 	return tb
@@ -43,13 +46,9 @@ func (tb *TimeBank) Cancel() {
 		return
 	}
 
-	tb.closed <- struct{}{}
 	tb.isRunning = false
 	tb.timer.Stop()
-
-	if tb.callback != nil {
-		tb.callback(true)
-	}
+	tb.cancel()
 }
 
 func (tb *TimeBank) NewTask(duration time.Duration, fn func(isCancelled bool)) error {
@@ -69,21 +68,24 @@ func (tb *TimeBank) NewTask(duration time.Duration, fn func(isCancelled bool)) e
 		tb.Cancel()
 	}
 
+	// Initializing context
+	ctx, cancel := context.WithCancel(context.Background())
+	tb.ctx = ctx
+	tb.cancel = cancel
+
 	tb.due = time.Now().Add(duration)
 	tb.timer.Reset(duration)
 	tb.isRunning = true
 	tb.callback = fn
 
-	go func() {
+	go func(ctx context.Context) {
 		select {
 		case <-tb.timer.C:
-			tb.isRunning = false
-			close(tb.closed)
-			tb.closed = make(chan struct{})
 			tb.callback(false)
-		case <-tb.closed:
+		case <-ctx.Done():
+			tb.callback(true)
 		}
-	}()
+	}(ctx)
 
 	return nil
 }
