@@ -20,7 +20,6 @@ type TimeBank struct {
 	timer     *time.Timer
 	due       time.Time
 	callback  func(bool)
-	ctx       context.Context
 	cancel    func()
 }
 
@@ -41,11 +40,6 @@ func NewTimeBank() *TimeBank {
 }
 
 func (tb *TimeBank) Cancel() {
-
-	if !tb.isRunning {
-		return
-	}
-
 	tb.isRunning = false
 	tb.timer.Stop()
 	tb.cancel()
@@ -53,30 +47,26 @@ func (tb *TimeBank) Cancel() {
 
 func (tb *TimeBank) NewTask(duration time.Duration, fn func(isCancelled bool)) error {
 
+	if fn == nil {
+		return ErrInvalidParameters
+	}
+
+	tb.Cancel()
+
 	// Trigger immediately
 	if duration == time.Second*0 && fn != nil {
+		tb.callback = fn
 		fn(false)
 		return nil
 	}
 
-	if duration == time.Second*0 && fn == nil {
-		return ErrInvalidParameters
-	}
-
-	// Running already
-	if tb.isRunning {
-		tb.Cancel()
-	}
-
 	// Initializing context
 	ctx, cancel := context.WithCancel(context.Background())
-	tb.ctx = ctx
 	tb.cancel = cancel
-
-	tb.due = time.Now().Add(duration)
-	tb.timer.Reset(duration)
 	tb.isRunning = true
 	tb.callback = fn
+	tb.due = time.Now().Add(duration)
+	tb.timer.Reset(duration)
 
 	go func(ctx context.Context) {
 		select {
@@ -99,7 +89,6 @@ func (tb *TimeBank) Extend(duration time.Duration) bool {
 
 	// total = remain + extend
 	total := tb.due.Sub(time.Now()) + duration
-	tb.timer.Stop()
 
 	// Update timer
 	tb.due = tb.due.Add(duration)
